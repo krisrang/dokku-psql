@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
+source "$PLUGIN_PATH/common/functions"
+source "$(dirname $0)/functions"
+set +e
+
+if [[ $1 == psql:* ]]; then
+  psql_load_container_id
+fi
+
+case "$1" in
+  psql:admin_console)
+    psql_check_container
+    interactive_docker_exec "$PSQL_CONTAINER_NAME" env TERM=$TERM psql -h localhost -U postgres
+    ;;
+
+  psql:console)
+    psql_check_container; verify_app_name "$APP"; psql_check_exists
+    DATABASE=$(cat "$PSQL_ROOT/db_$APP")
+    PASSWORD=$(cat "$PSQL_ROOT/pass_$APP")
+    interactive_docker_exec "$PSQL_CONTAINER_NAME" env TERM="$TERM" PGPASSWORD="$PASSWORD" psql -h localhost -U "$DATABASE" "$DATABASE"
+    ;;
+
+  psql:url)
+    psql_check_container; verify_app_name "$APP"; psql_check_exists
+    psql_db_url "$APP"
+    ;;
+
+  psql:create)
+    psql_check_container; verify_app_name "$APP"; psql_check_already_exists
+    PASSWORD=$(openssl rand -hex 32)
+    DATABASE=$(psql_database_name "$APP")
+    echo $DATABASE > "$PSQL_ROOT/db_$APP"
+    echo $PASSWORD > "$PSQL_ROOT/pass_$APP"
+    chmod 600 "$PSQL_ROOT/db_$APP" "$PSQL_ROOT/pass_$APP"
+    dokku_log_info1 "Creating database $APP"
+    docker exec "$PSQL_CONTAINER_NAME" su - postgres -c "psql --command \"CREATE USER $DATABASE WITH PASSWORD '$PASSWORD';\";\
+      createdb -E utf8 -O $DATABASE $DATABASE;\
+      psql --command \"GRANT ALL PRIVILEGES ON DATABASE $DATABASE TO $DATABASE;\"" > /dev/null
+    psql_set_env_for "$APP"
+    ;;
+
+  psql:delete)
+    psql_check_container; verify_app_name "$APP"; psql_check_exists
+    DATABASE=$(cat "$PSQL_ROOT/db_$APP")
+    dokku_log_info1 "Deleting database $APP"
+    docker exec "$PSQL_CONTAINER_NAME" su - postgres -c "dropdb $DATABASE; dropuser $DATABASE" > /dev/null
+    rm -f "$PSQL_ROOT/db_$APP" "$PSQL_ROOT/pass_$APP"
+    if [[ -d "$DOKKU_ROOT/$APP" ]]; then
+      psql_unset_env_for "$APP"
+    fi
+    ;;
+
+  psql:list)
+    psql_check_container
+    interactive_docker_exec "$PSQL_CONTAINER_NAME" env TERM=$TERM psql -h localhost -U postgres -c '\l'
+    ;;
+
+  psql:restart)
+    dokku psql:stop
+    dokku psql:start
+    ;;
+
+  psql:stop)
+    psql_check_container
+    dokku_log_info1 "Stopping Postgresql server"
+    docker stop "$PSQL_CONTAINER_NAME" > /dev/null
+    ;;
+
+  psql:dump)
+    psql_check_container; verify_app_name "$APP"; psql_check_exists
+    DATABASE=$(cat "$PSQL_ROOT/db_$APP")
+    PASSWORD=$(cat "$PSQL_ROOT/pass_$APP")
+    docker exec -i "$PSQL_CONTAINER_NAME" env PGPASSWORD="$PASSWORD" pg_dump -Fc --no-acl --no-owner -h localhost -U "$DATABASE" -w "$DATABASE"
+    ;;
+
+  psql:restore)
+    psql_check_container; verify_app_name "$APP"; psql_check_exists
+    DATABASE=$(cat "$PSQL_ROOT/db_$APP")
+    PASSWORD=$(cat "$PSQL_ROOT/pass_$APP")
+    cat - | docker exec -i "$PSQL_CONTAINER_NAME" env PGPASSWORD="$PASSWORD" pg_restore -h localhost -cO -d "$DATABASE" -U "$DATABASE" -w
+    ;;
+
+  psql:status)
+    [[ -n "$PSQL_ID" ]] && echo "Postgresql container running with ID: $PSQL_ID" && exit 0
+    echo "Postgresql container not running"
+    ;;
+
+  psql:docker_args)
+    STDIN=$(cat)
+    if [[ -f "$PSQL_ROOT/db_$1" ]]; then
+      echo "$STDIN --link $PSQL_CONTAINER_NAME:$PSQL_HOST"
+    else
+      echo "$STDIN"
+    fi
+    ;;
+
+  psql:pre_build)
+    [[ ! -f "$PSQL_ROOT/db_$1" ]] && exit 0
+    [[ -z "$PSQL_ID" ]] && dokku psql:start
+    sleep 2
+    exit 0
+    ;;
+
+  psql:start)
+    if [[ -n "$PSQL_ID" ]]; then
+      echo "Postgresql container already running with ID: $PSQL_ID"
+      exit 1
+    fi
+    OLD_ID=$(docker ps -f status=exited | grep "$PSQL_CONTAINER_NAME" | awk '{print $1}')
+    if [[ -n $OLD_ID ]]; then
+      dokku_log_info1 "Restarting previously stopped Postgresql container $OLD_ID"
+      docker start "$OLD_ID" > /dev/null
+      exit 0
+    fi
+    dokku_log_info1 "Starting Postgresql server"
+    docker run -d -v $PSQL_ROOT/data:/var/lib/postgresql/data --name "$PSQL_CONTAINER_NAME" "$PSQL_IMAGE" > /dev/null
+    ;;
+
+  help)
+    cat && cat<<EOF
+    psql:admin_console                              Launch a psql admin cli
+    psql:console     <app>                          Launch a psql cli for <app>
+    psql:create      <app>                          Create a psql database for <app>
+    psql:delete      <app>                          Delete psql database for <app>
+    psql:dump        <app> > <filename.rdb>         Dump <app> database to rdb file
+    psql:list                                       List all databases
+    psql:restart     <app>                          Restart the psql docker container for <app>
+    psql:restore     <app> < <filename.rdb>         Restore database to <app> from rdb file
+    psql:start                                      Start the psql docker container if it isn't running
+    psql:status                                     Shows status of psql
+    psql:stop                                       Stop the psql docker container
+    psql:url         <app>                          Get DATABASE_URL for <app>
+EOF
+    ;;
+esac
