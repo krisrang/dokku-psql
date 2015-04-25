@@ -74,3 +74,10 @@ teardown() {
   assert_success
   assert_output "pg_dump"
 }
+
+@test "psql:docker_args gives correct link" {
+  run dokku psql:create testapp
+  run bash -c "echo 'test' | dokku psql:docker_args testapp"
+  assert_success
+  assert_output "test --link dokku-psqlkr:postgres"
+}
