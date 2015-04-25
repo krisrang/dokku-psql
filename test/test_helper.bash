@@ -6,7 +6,7 @@ export DOKKU_VERSION=${DOKKU_VERSION:-"v0.3.17"}
 export DOKKU_ROOT="test/fixtures/dokku"
 export PLUGIN_PATH="test/dokku/plugins"
 export DOKKU_QUIET_OUTPUT=1
-export PSQL_ROOT="$DOKKU_ROOT/psqlkr"
+export PSQL_ROOT="$DOKKU_ROOT/.psqlkr"
 
 flunk() {
   { if [ "$#" -eq 0 ]; then cat -

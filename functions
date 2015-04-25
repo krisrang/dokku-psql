@@ -2,7 +2,7 @@
 set -eo pipefail; [[ $DOKKU_TRACE  ]] && set -x
 
 APP="$2"
-PSQL_ROOT="$DOKKU_ROOT/psqlkr"
+PSQL_ROOT="$DOKKU_ROOT/.psqlkr"
 PSQL_IMAGE="postgres:9.4"
 PSQL_CONTAINER_NAME="dokku-psqlkr"
 PSQL_PORT=5432
