@@ -88,7 +88,7 @@ case "$1" in
 
   psql:docker_args)
     STDIN=$(cat)
-    if [[ -f "$PSQL_ROOT/db_$1" ]]; then
+    if [[ -f "$PSQL_ROOT/db_$APP" ]]; then
       echo "$STDIN --link $PSQL_CONTAINER_NAME:$PSQL_HOST"
     else
       echo "$STDIN"
@@ -96,7 +96,7 @@ case "$1" in
     ;;
 
   psql:pre_build)
-    [[ ! -f "$PSQL_ROOT/db_$1" ]] && exit 0
+    [[ ! -f "$PSQL_ROOT/db_$APP" ]] && exit 0
     [[ -z "$PSQL_ID" ]] && dokku psql:start
     sleep 2
     exit 0
