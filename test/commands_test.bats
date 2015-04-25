@@ -43,7 +43,7 @@ teardown() {
   run dokku psql:create testapp
   run dokku psql:list --quiet
   assert_success
-  assert_output "exec called with exec --interactive --tty dokku-psqlkr env TERM=xterm-256color psql -h localhost -U postgres -c \l"
+  assert_output "exec called with exec --interactive --tty dokku-psqlkr env TERM=$TERM psql -h localhost -U postgres -c \l"
 }
 
 @test "psql:url returns psql url" {
@@ -59,7 +59,7 @@ teardown() {
   run dokku psql:console testapp
   PASS=$(cat "$PSQL_ROOT/pass_testapp")
   assert_success
-  assert_output "exec called with exec --interactive --tty dokku-psqlkr env TERM=xterm-256color PGPASSWORD=$PASS psql -h localhost -U testapp testapp"
+  assert_output "exec called with exec --interactive --tty dokku-psqlkr env TERM=$TERM PGPASSWORD=$PASS psql -h localhost -U testapp testapp"
 }
 
 @test "psql:stop stops psql container" {
