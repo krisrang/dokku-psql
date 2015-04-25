@@ -123,14 +123,14 @@ case "$1" in
     psql:console     <app>                          Launch a psql cli for <app>
     psql:create      <app>                          Create a psql database for <app>
     psql:delete      <app>                          Delete psql database for <app>
-    psql:dump        <app> > <filename.rdb>         Dump <app> database to rdb file
+    psql:url         <app>                          Get DATABASE_URL for <app>
+    psql:dump        <app> > <filename.dump>        Dump <app> database to dump file
+    psql:restore     <app> < <filename.*>           Restore database to <app> from file
     psql:list                                       List all databases
-    psql:restart     <app>                          Restart the psql docker container for <app>
-    psql:restore     <app> < <filename.rdb>         Restore database to <app> from rdb file
+    psql:restart                                    Restart the psql docker container
     psql:start                                      Start the psql docker container if it isn't running
     psql:status                                     Shows status of psql
     psql:stop                                       Stop the psql docker container
-    psql:url         <app>                          Get DATABASE_URL for <app>
 EOF
     ;;
 esac
