@@ -5,7 +5,7 @@ dokku-psql is a plugin for [dokku][dokku] that provides PostgreSQL servers for y
 
 It uses the official PostgreSQL docker image (version 9.4).
 
-This version is tested against dokku 0.3.17.
+This version is tested against dokku 0.3.18.
 
 ## Installation
 
